@@ -10,7 +10,10 @@ from backend.services.embedding_service import (
     semantic_search
 )
 from backend.services.llm_service import ask_mistral
-from backend.services.embedding_service import semantic_search
+from backend.services.memory_service import (
+    add_to_memory,
+    get_memory
+)
 
 router = APIRouter()
 
@@ -107,19 +110,42 @@ def ask_repo(question: str):
         context += result["content"]
         context += "\n\n"
 
+    # Get previous conversation memory
+    memory = get_memory()
+
+    conversation_context = ""
+
+    for item in memory:
+
+        conversation_context += f"""
+        Previous Question:
+        {item['question']}
+
+        Previous Answer:
+        {item['answer']}
+        """
+
+    # Build intelligent prompt
     prompt = f"""
     You are an AI repository assistant.
 
-    Use the repository context below to answer the question.
+    Use the repository context and conversation history
+    to answer the current question clearly.
 
     Repository Context:
     {context}
 
-    Question:
+    Conversation History:
+    {conversation_context}
+
+    Current Question:
     {question}
     """
 
     answer = ask_mistral(prompt)
+
+    # Save current interaction into memory
+    add_to_memory(question, answer)
 
     return {
         "question": question,

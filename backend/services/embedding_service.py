@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from backend.services.chunking_service import chunk_code
 import numpy as np
 
 
@@ -28,21 +29,35 @@ def index_repository(parsed_files):
 
         text_representation = f"""
         File: {file_path}
-        Functions: {functions}
-        Classes: {classes}
-        Imports: {imports}
+
+        Functions:
+        {functions}
+
+        Classes:
+        {classes}
+
+        Imports:
+        {imports}
         """
 
-        code_chunks.append(text_representation)
+        # Split into smaller semantic chunks
+        chunks = chunk_code(text_representation)
 
-        vector = model.encode(text_representation)
+        for chunk in chunks:
 
-        embedding_vectors.append(vector)
+            code_chunks.append({
+                "file": file_path,
+                "content": chunk
+            })
+
+            vector = model.encode(chunk)
+
+            embedding_vectors.append(vector)
 
     embeddings = np.array(embedding_vectors)
 
     return {
-        "indexed_files": len(code_chunks)
+        "indexed_chunks": len(code_chunks)
     }
 
 
@@ -63,7 +78,8 @@ def semantic_search(query, top_k=5):
 
         results.append({
             "score": float(similarities[idx]),
-            "content": code_chunks[idx]
+            "file": code_chunks[idx]["file"],
+            "content": code_chunks[idx]["content"]
         })
 
     return results
