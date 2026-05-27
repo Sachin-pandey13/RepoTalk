@@ -101,7 +101,7 @@ def search_repo(query: str):
 @router.get("/ask")
 def ask_repo(question: str):
 
-    search_results = semantic_search(question)
+    search_results = semantic_search(question, top_k=2)
 
     context = ""
 
@@ -111,7 +111,7 @@ def ask_repo(question: str):
         context += "\n\n"
 
     # Get previous conversation memory
-    memory = get_memory()
+    memory = get_memory()[-3:]
 
     conversation_context = ""
 

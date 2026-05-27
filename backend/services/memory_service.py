@@ -1,18 +1,43 @@
-conversation_history = []
+from backend.services.database_service import (
+    connection,
+    cursor
+)
 
 
 def add_to_memory(question, answer):
 
-    conversation_history.append({
-        "question": question,
-        "answer": answer
-    })
+    cursor.execute(
+        """
+        INSERT INTO memory (question, answer)
+        VALUES (?, ?)
+        """,
+        (question, answer)
+    )
 
-    # keep only latest 5 conversations
-    if len(conversation_history) > 5:
-        conversation_history.pop(0)
+    connection.commit()
 
 
-def get_memory():
+def get_memory(limit=5):
 
-    return conversation_history
+    cursor.execute(
+        """
+        SELECT question, answer
+        FROM memory
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+
+    rows = cursor.fetchall()
+
+    memory = []
+
+    for row in rows:
+
+        memory.append({
+            "question": row[0],
+            "answer": row[1]
+        })
+
+    return memory
