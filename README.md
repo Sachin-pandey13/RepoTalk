@@ -3,6 +3,7 @@
 - Repository cloning
 - Workspace management
 - Recursive filesystem scanning
-- Extension analysis
 - Language detection
-- Repository metadata extraction
+- Python AST parsing
+- Repository-wide code analysis
+- Function/class/import extraction

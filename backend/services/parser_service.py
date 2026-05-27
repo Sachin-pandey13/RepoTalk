@@ -2,6 +2,8 @@ from tree_sitter import Language, Parser
 import tree_sitter_python as tspython
 import os
 
+from backend.services.graph_service import build_dependency_graph
+
 
 PY_LANGUAGE = Language(tspython.language())
 
@@ -81,7 +83,10 @@ def parse_repository(repo_path: str):
                         "error": str(e)
                     })
 
+    dependency_graph = build_dependency_graph(parsed_files)
+
     return {
         "repository": repo_path,
-        "parsed_files": parsed_files
+        "parsed_files": parsed_files,
+        "dependency_graph": dependency_graph
     }
