@@ -5,3 +5,4 @@ __pycache__/
 workspace/
 lib/
 backend/static/
+vector_db/

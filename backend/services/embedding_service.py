@@ -1,23 +1,25 @@
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 from backend.services.chunking_service import chunk_code
-import numpy as np
+from backend.services.vector_db_service import collection
 
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 code_chunks = []
-embeddings = []
 
 
 def index_repository(parsed_files):
 
     global code_chunks
-    global embeddings
 
     code_chunks = []
-    embedding_vectors = []
+
+    # Optional: clear old embeddings before re-indexing
+    existing = collection.get()
+
+    if existing["ids"]:
+        collection.delete(ids=existing["ids"])
 
     for file_data in parsed_files:
 
@@ -40,21 +42,24 @@ def index_repository(parsed_files):
         {imports}
         """
 
-        # Split into smaller semantic chunks
+        # Split into semantic chunks
         chunks = chunk_code(text_representation)
 
         for chunk in chunks:
+
+            vector = model.encode(chunk).tolist()
+
+            collection.add(
+                documents=[chunk],
+                embeddings=[vector],
+                metadatas=[{"file": file_path}],
+                ids=[f"{file_path}_{len(code_chunks)}"]
+            )
 
             code_chunks.append({
                 "file": file_path,
                 "content": chunk
             })
-
-            vector = model.encode(chunk)
-
-            embedding_vectors.append(vector)
-
-    embeddings = np.array(embedding_vectors)
 
     return {
         "indexed_chunks": len(code_chunks)
@@ -63,23 +68,29 @@ def index_repository(parsed_files):
 
 def semantic_search(query, top_k=5):
 
-    query_vector = model.encode(query)
+    query_vector = model.encode(query).tolist()
 
-    similarities = cosine_similarity(
-        [query_vector],
-        embeddings
-    )[0]
+    results = collection.query(
+        query_embeddings=[query_vector],
+        n_results=top_k
+    )
 
-    top_indices = similarities.argsort()[-top_k:][::-1]
+    formatted_results = []
 
-    results = []
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
 
-    for idx in top_indices:
+    for doc, meta, distance in zip(
+        documents,
+        metadatas,
+        distances
+    ):
 
-        results.append({
-            "score": float(similarities[idx]),
-            "file": code_chunks[idx]["file"],
-            "content": code_chunks[idx]["content"]
+        formatted_results.append({
+            "file": meta["file"],
+            "content": doc,
+            "score": distance
         })
 
-    return results
+    return formatted_results
