@@ -5,6 +5,10 @@ from backend.services.scanner_service import scan_repository
 from backend.services.parser_service import parse_python_file
 from backend.services.parser_service import parse_repository
 from backend.services.visualization_service import generate_dependency_graph
+from backend.services.embedding_service import (
+    index_repository,
+    semantic_search
+)
 
 router = APIRouter()
 
@@ -64,4 +68,27 @@ def visualize_repo(repo_name: str):
     return {
         "message": "Dependency graph generated successfully",
         "graph_file": graph_path
+    }
+    
+@router.get("/index-repo")
+def index_repo(repo_name: str):
+
+    repo_path = f"workspace/{repo_name}"
+
+    parsed_result = parse_repository(repo_path)
+
+    parsed_files = parsed_result["parsed_files"]
+
+    result = index_repository(parsed_files)
+
+    return result
+
+@router.get("/search")
+def search_repo(query: str):
+
+    results = semantic_search(query)
+
+    return {
+        "query": query,
+        "results": results
     }
