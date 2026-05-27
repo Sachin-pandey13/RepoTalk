@@ -22,6 +22,7 @@ def parse_python_file(file_path: str):
     functions = []
     classes = []
     imports = []
+    function_calls = []
 
     for child in root_node.children:
 
@@ -31,7 +32,35 @@ def parse_python_file(file_path: str):
             name_node = child.child_by_field_name("name")
 
             if name_node:
-                functions.append(name_node.text.decode())
+
+                function_name = name_node.text.decode()
+
+                functions.append(function_name)
+
+                calls_inside_function = []
+
+                # Recursive traversal for function calls
+                def traverse(node):
+
+                    if node.type == "call":
+
+                        called_function = node.child_by_field_name("function")
+
+                        if called_function:
+
+                            calls_inside_function.append(
+                                called_function.text.decode()
+                            )
+
+                    for child_node in node.children:
+                        traverse(child_node)
+
+                traverse(child)
+
+                function_calls.append({
+                    "function": function_name,
+                    "calls": calls_inside_function
+                })
 
         # Class definitions
         elif child.type == "class_definition":
@@ -49,7 +78,8 @@ def parse_python_file(file_path: str):
     return {
         "functions": functions,
         "classes": classes,
-        "imports": imports
+        "imports": imports,
+        "function_calls": function_calls
     }
 
 
@@ -73,7 +103,8 @@ def parse_repository(repo_path: str):
                         "file": file_path,
                         "functions": parsed_data["functions"],
                         "classes": parsed_data["classes"],
-                        "imports": parsed_data["imports"]
+                        "imports": parsed_data["imports"],
+                        "function_calls": parsed_data["function_calls"]
                     })
 
                 except Exception as e:
