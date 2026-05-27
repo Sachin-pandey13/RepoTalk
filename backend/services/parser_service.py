@@ -1,5 +1,6 @@
 from tree_sitter import Language, Parser
 import tree_sitter_python as tspython
+import os
 
 
 PY_LANGUAGE = Language(tspython.language())
@@ -47,4 +48,40 @@ def parse_python_file(file_path: str):
         "functions": functions,
         "classes": classes,
         "imports": imports
+    }
+
+
+def parse_repository(repo_path: str):
+
+    parsed_files = []
+
+    for root, dirs, files in os.walk(repo_path):
+
+        for file in files:
+
+            if file.endswith(".py"):
+
+                file_path = os.path.join(root, file)
+
+                try:
+
+                    parsed_data = parse_python_file(file_path)
+
+                    parsed_files.append({
+                        "file": file_path,
+                        "functions": parsed_data["functions"],
+                        "classes": parsed_data["classes"],
+                        "imports": parsed_data["imports"]
+                    })
+
+                except Exception as e:
+
+                    parsed_files.append({
+                        "file": file_path,
+                        "error": str(e)
+                    })
+
+    return {
+        "repository": repo_path,
+        "parsed_files": parsed_files
     }

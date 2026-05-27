@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from backend.services.repo_service import clone_repository
 from backend.services.scanner_service import scan_repository
 from backend.services.parser_service import parse_python_file
+from backend.services.parser_service import parse_repository
 
 router = APIRouter()
 
@@ -36,5 +37,14 @@ def scan_repo(repo_name: str):
 def parse_file(file_path: str):
 
     result = parse_python_file(file_path)
+
+    return result
+
+@router.get("/parse-repo")
+def parse_repo(repo_name: str):
+
+    repo_path = f"workspace/{repo_name}"
+
+    result = parse_repository(repo_path)
 
     return result
