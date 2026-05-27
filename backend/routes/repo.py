@@ -9,6 +9,8 @@ from backend.services.embedding_service import (
     index_repository,
     semantic_search
 )
+from backend.services.llm_service import ask_mistral
+from backend.services.embedding_service import semantic_search
 
 router = APIRouter()
 
@@ -91,4 +93,35 @@ def search_repo(query: str):
     return {
         "query": query,
         "results": results
+    }
+    
+@router.get("/ask")
+def ask_repo(question: str):
+
+    search_results = semantic_search(question)
+
+    context = ""
+
+    for result in search_results:
+
+        context += result["content"]
+        context += "\n\n"
+
+    prompt = f"""
+    You are an AI repository assistant.
+
+    Use the repository context below to answer the question.
+
+    Repository Context:
+    {context}
+
+    Question:
+    {question}
+    """
+
+    answer = ask_mistral(prompt)
+
+    return {
+        "question": question,
+        "answer": answer
     }
