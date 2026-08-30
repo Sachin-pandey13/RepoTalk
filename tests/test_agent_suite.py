@@ -38,7 +38,7 @@ TEST_CASES = [
 
 def run_benchmark():
     print("=" * 70)
-    print("🚀 REPOTALK AGENT RELIABILITY & EVIDENCE SUITE")
+    print("[REPOTALK AGENT RELIABILITY & EVIDENCE SUITE]")
     print("=" * 70)
 
     results = []
@@ -55,7 +55,7 @@ def run_benchmark():
         res = agent.run(question)
 
         if "error" in res:
-            print(f"❌ Error: {res['error']}")
+            print(f"[FAIL] Error: {res['error']}")
             results.append({
                 "category": category,
                 "status": "FAILED",
@@ -70,11 +70,11 @@ def run_benchmark():
         symbols_examined = res.get("symbols_examined", [])
         iterations = res.get("iterations_used", 0)
 
-        print(f"✅ Iterations Used: {iterations}")
-        print(f"🔗 Execution Trace: {exec_trace}")
-        print(f"📁 Files Examined: {files_examined}")
-        print(f"🔣 Symbols Examined: {symbols_examined}")
-        print(f"🔍 Evidence Sources Count: {len(evidence_sources)}")
+        print(f"[OK] Iterations Used: {iterations}")
+        print(f"  Execution Trace: {exec_trace}")
+        print(f"  Files Examined: {files_examined}")
+        print(f"  Symbols Examined: {symbols_examined}")
+        print(f"  Evidence Sources Count: {len(evidence_sources)}")
 
         # Validation Checks
         has_tools = len(exec_trace) > 0
@@ -95,10 +95,11 @@ def run_benchmark():
         })
 
     print("\n" + "=" * 70)
-    print("📊 BENCHMARK SUMMARY")
+    print("[BENCHMARK SUMMARY]")
     print("=" * 70)
     print(json.dumps(results, indent=2))
     return results
+
 
 
 if __name__ == "__main__":
