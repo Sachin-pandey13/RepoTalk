@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from backend.services.repo_service import clone_repository
 from backend.services.scanner_service import scan_repository
@@ -14,8 +15,11 @@ from backend.services.memory_service import (
     add_to_memory,
     get_memory
 )
+from backend.services.call_graph_service import generate_call_graph
+from agents.repository_agent import RepositoryAgent
 
 router = APIRouter()
+
 
 
 @router.get("/repo")
@@ -151,3 +155,39 @@ def ask_repo(question: str):
         "question": question,
         "answer": answer
     }
+
+@router.get("/call-graph")
+def visualize_call_graph(repo_name: str):
+
+    repo_path = f"workspace/{repo_name}"
+
+    parsed_result = parse_repository(repo_path)
+
+    parsed_files = parsed_result["parsed_files"]
+
+    graph_path = generate_call_graph(parsed_files)
+
+    return {
+        "message": "Function call graph generated",
+        "graph_file": graph_path
+    }
+
+
+class AgentAskRequest(BaseModel):
+    repo_name: str
+    question: str
+    max_iterations: int = 6
+
+
+@router.post("/agent/ask")
+def agent_ask_post(request: AgentAskRequest):
+    agent = RepositoryAgent(repo_name=request.repo_name, max_iterations=request.max_iterations)
+    result = agent.run(request.question)
+    return result
+
+
+@router.get("/agent/ask")
+def agent_ask_get(repo_name: str, question: str, max_iterations: int = 6):
+    agent = RepositoryAgent(repo_name=repo_name, max_iterations=max_iterations)
+    result = agent.run(question)
+    return result

@@ -12,20 +12,21 @@ def ask_mistral(prompt):
         "stream": False
     }
 
-    response = requests.post(
-        OLLAMA_URL,
-        json=payload
-    )
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json=payload,
+            timeout=60
+        )
 
-    # Debugging support
-    if response.status_code != 200:
+        if response.status_code != 200:
+            return f"Ollama API Error: {response.text}"
 
-        return f"Ollama API Error: {response.text}"
+        data = response.json()
 
-    data = response.json()
-
-    # Safe extraction
-    return data.get(
-        "response",
-        "No response generated from model."
-    )
+        return data.get(
+            "response",
+            "No response generated from model."
+        )
+    except Exception as e:
+        return f"Ollama Connection Error: {str(e)}"
