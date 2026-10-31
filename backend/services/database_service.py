@@ -34,11 +34,12 @@ CREATE TABLE IF NOT EXISTS repos (
     user_id     INTEGER,
     repo_url    TEXT NOT NULL,
     repo_name   TEXT NOT NULL,
-    status      TEXT DEFAULT 'pending',     -- pending|cloning|indexing|ready|error
+    status      TEXT DEFAULT 'pending',     -- pending|cloning|parsing|indexing|ready|error
     error_msg   TEXT,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, repo_url)
 );
 """
 

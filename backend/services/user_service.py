@@ -44,13 +44,29 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def get_user_repos(user_id: int) -> list[dict]:
+def get_user_repos(user_id: int) -> list[str]:
+    """Return list of distinct repo names for the user (newest first)."""
     with db_cursor() as cur:
         cur.execute(
-            "SELECT * FROM repos WHERE user_id=? ORDER BY created_at DESC",
+            """
+            SELECT DISTINCT repo_name FROM repos
+            WHERE user_id=? AND status != 'error'
+            ORDER BY created_at DESC
+            """,
             (user_id,),
         )
-        return [dict(r) for r in cur.fetchall()]
+        return [r[0] for r in cur.fetchall()]
+
+
+def get_repo_status(user_id: int, repo_name: str) -> Optional[dict]:
+    """Return status record for a specific repo."""
+    with db_cursor() as cur:
+        cur.execute(
+            "SELECT * FROM repos WHERE user_id=? AND repo_name=? ORDER BY id DESC LIMIT 1",
+            (user_id, repo_name),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def upsert_repo(
@@ -64,7 +80,11 @@ def upsert_repo(
             """
             INSERT INTO repos (user_id, repo_url, repo_name, status)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT(user_id, repo_url)
+            DO UPDATE SET
+                repo_name  = excluded.repo_name,
+                status     = excluded.status,
+                updated_at = CURRENT_TIMESTAMP
             """,
             (user_id, repo_url, repo_name, status),
         )

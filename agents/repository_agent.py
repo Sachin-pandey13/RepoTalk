@@ -382,14 +382,23 @@ class RepositoryAgent:
                             file_path
                         )
 
-                        self._add_evidence({
+                        # Include line numbers when available
+                        evidence = {
                             "type": "ast_declaration",
                             "symbol": symbol_name,
-                            "kind": definition.get(
-                                "type"
-                            ),
-                            "file": file_path
-                        })
+                            "kind": definition.get("type"),
+                            "file": file_path,
+                        }
+                        line = definition.get("line")
+                        end_line = definition.get("end_line")
+                        if line:
+                            evidence["line"] = line
+                        if end_line:
+                            evidence["end_line"] = end_line
+                        docstring = definition.get("docstring")
+                        if docstring:
+                            evidence["docstring"] = docstring[:200]
+                        self._add_evidence(evidence)
 
             return res
 
@@ -942,6 +951,7 @@ Return ONLY one valid JSON object using the required format.
                 return {
                     "question": question,
                     "answer": explanation,
+                    "explanation": explanation,   # alias for chat route
                     "execution_flow": execution_flow,
                     "execution_trace": self.execution_trace,
                     "evidence_citations": evidence_citations,
@@ -1031,15 +1041,15 @@ Choose another useful tool or final_answer.
                 tool_output
             )
 
-            if len(output_text) > 1500:
+            if len(output_text) > 3000:
 
                 summary = (
-                    output_text[:500]
+                    output_text[:600]
                     + "... [truncated]"
                 )
 
                 observation = (
-                    output_text[:1500]
+                    output_text[:3000]
                     + "... [truncated]"
                 )
 

@@ -16,7 +16,7 @@ from backend.services.embedding_service import semantic_search, index_repository
 from backend.services.memory_service import add_to_memory, get_memory, get_conversation_history, clear_memory
 from backend.services.repo_service import clone_repository
 from backend.services.parser_service import parse_repository
-from backend.services.user_service import upsert_repo, update_repo_status, get_user_repos
+from backend.services.user_service import upsert_repo, update_repo_status, get_user_repos, get_repo_status
 from agents.repository_agent import RepositoryAgent
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -70,19 +70,28 @@ class StreamChatRequest(BaseModel):
 # ─── Ingestion ───────────────────────────────────────────────────────────────
 
 def _ingest_pipeline(repo_url: str, repo_name: str, repo_id: int) -> None:
-    """Background task: clone → parse → index."""
+    """Background task: clone → parse → embed → index."""
     try:
         update_repo_status(repo_id, "cloning")
         clone_result = clone_repository(repo_url)
-        local_path = clone_result.get("local_path", f"workspace/{repo_name}")
+        local_path = clone_result["local_path"]
+        # Use the sanitised repo_name returned by clone_repository
+        safe_name = clone_result.get("repo_name", repo_name)
+
+        update_repo_status(repo_id, "parsing")
+        parsed = parse_repository(local_path)
 
         update_repo_status(repo_id, "indexing")
-        parsed = parse_repository(local_path)
-        index_repository(parsed["parsed_files"], repo_name)
+        index_result = index_repository(parsed["parsed_files"], safe_name)
 
-        update_repo_status(repo_id, "ready")
+        update_repo_status(
+            repo_id,
+            "ready",
+            f"Indexed {index_result['indexed_chunks']} chunks from "
+            f"{index_result['total_files']} files",
+        )
     except Exception as exc:
-        update_repo_status(repo_id, "error", str(exc))
+        update_repo_status(repo_id, "error", str(exc)[:500])
 
 
 @router.post("/ingest")
@@ -92,25 +101,30 @@ async def ingest_repo(
     user_id: Optional[int] = Depends(get_optional_user_id),
 ):
     """Clone and index a repository in the background."""
-    repo_url = req.repo_url
-    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    repo_url = req.repo_url.strip()
+
+    # Derive a preliminary repo_name for the immediate response
+    # (the ingest task will use the sanitised name from clone_repository)
+    import re as _re
+    raw_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    repo_name = _re.sub(r"[^\w.\-]", "_", raw_name)[:80]
 
     # Track in DB if user is authenticated
-    repo_id = None
+    repo_id: int = -1
     if user_id:
-        repo_record = upsert_repo(user_id, repo_url, repo_name)
-        repo_id = repo_record["id"]
-    else:
-        # Anonymous — use a sentinel id
-        repo_id = -1
+        try:
+            repo_record = upsert_repo(user_id, repo_url, repo_name)
+            repo_id = repo_record["id"]
+        except Exception:
+            repo_id = -1
 
-    if repo_id and repo_id > 0:
+    if repo_id > 0:
         background_tasks.add_task(_ingest_pipeline, repo_url, repo_name, repo_id)
     else:
         background_tasks.add_task(_ingest_pipeline_anon, repo_url, repo_name)
 
     return {
-        "message": "Repository ingestion started",
+        "message": "Repository ingestion started — this may take 30-120 seconds.",
         "repo_name": repo_name,
         "repo_url": repo_url,
         "status": "pending",
@@ -118,14 +132,34 @@ async def ingest_repo(
 
 
 def _ingest_pipeline_anon(repo_url: str, repo_name: str) -> None:
+    """Anonymous ingest — no DB tracking."""
     try:
-        clone_repository(repo_url)
-        local_path = f"workspace/{repo_name}"
+        clone_result = clone_repository(repo_url)
+        local_path = clone_result["local_path"]
+        safe_name = clone_result.get("repo_name", repo_name)
         parsed = parse_repository(local_path)
-        index_repository(parsed["parsed_files"], repo_name)
+        index_repository(parsed["parsed_files"], safe_name)
     except Exception:
         pass
 
+
+# ─── Ingest status polling ────────────────────────────────────────────────────
+
+@router.get("/ingest/status/{repo_name}")
+def get_ingest_status(
+    repo_name: str,
+    user_id: int = Depends(get_current_user_id),
+):
+    """Poll the indexing status of a repository."""
+    record = get_repo_status(user_id, repo_name)
+    if not record:
+        return {"repo_name": repo_name, "status": "not_found"}
+    return {
+        "repo_name": repo_name,
+        "status": record["status"],
+        "error_msg": record.get("error_msg"),
+        "updated_at": record.get("updated_at"),
+    }
 
 # ─── Agent chat (JSON response) ──────────────────────────────────────────────
 
