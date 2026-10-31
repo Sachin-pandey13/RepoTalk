@@ -1,4 +1,5 @@
 from sentence_transformers import SentenceTransformer
+
 from backend.services.chunking_service import chunk_code
 from backend.services.vector_db_service import collection
 
@@ -9,17 +10,27 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 code_chunks = []
 
 
-def index_repository(parsed_files):
+def index_repository(parsed_files, repo_name):
+    """
+    Index repository code chunks into ChromaDB.
+
+    Only embeddings belonging to the specified repository are removed
+    before re-indexing. Other repositories remain untouched.
+    """
 
     global code_chunks
 
     code_chunks = []
 
-    # Optional: clear old embeddings before re-indexing
-    existing = collection.get()
+    # Remove only existing embeddings for this repository.
+    existing = collection.get(
+        where={"repo_name": repo_name}
+    )
 
     if existing["ids"]:
-        collection.delete(ids=existing["ids"])
+        collection.delete(
+            ids=existing["ids"]
+        )
 
     for file_data in parsed_files:
 
@@ -30,6 +41,8 @@ def index_repository(parsed_files):
         imports = file_data.get("imports", [])
 
         text_representation = f"""
+        Repository: {repo_name}
+
         File: {file_path}
 
         Functions:
@@ -42,44 +55,58 @@ def index_repository(parsed_files):
         {imports}
         """
 
-        # Split into semantic chunks
         chunks = chunk_code(text_representation)
 
         for chunk in chunks:
 
             vector = model.encode(chunk).tolist()
 
+            chunk_id = f"{repo_name}_{file_path}_{len(code_chunks)}"
+
             collection.add(
                 documents=[chunk],
                 embeddings=[vector],
-                metadatas=[{"file": file_path}],
-                ids=[f"{file_path}_{len(code_chunks)}"]
+                metadatas=[
+                    {
+                        "file": file_path,
+                        "repo_name": repo_name
+                    }
+                ],
+                ids=[chunk_id]
             )
 
             code_chunks.append({
+                "repo_name": repo_name,
                 "file": file_path,
                 "content": chunk
             })
 
     return {
+        "repository": repo_name,
         "indexed_chunks": len(code_chunks)
     }
 
 
-def semantic_search(query, top_k=5):
+def semantic_search(query, repo_name, top_k=5):
+    """
+    Perform semantic search restricted to a specific repository.
+    """
 
     query_vector = model.encode(query).tolist()
 
     results = collection.query(
         query_embeddings=[query_vector],
-        n_results=top_k
+        n_results=top_k,
+        where={
+            "repo_name": repo_name
+        }
     )
 
     formatted_results = []
 
-    documents = results["documents"][0]
-    metadatas = results["metadatas"][0]
-    distances = results["distances"][0]
+    documents = results.get("documents", [[]])[0]
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
 
     for doc, meta, distance in zip(
         documents,
@@ -88,7 +115,8 @@ def semantic_search(query, top_k=5):
     ):
 
         formatted_results.append({
-            "file": meta["file"],
+            "repo_name": meta.get("repo_name"),
+            "file": meta.get("file"),
             "content": doc,
             "score": distance
         })

@@ -18,8 +18,8 @@ from backend.services.memory_service import (
 from backend.services.call_graph_service import generate_call_graph
 from agents.repository_agent import RepositoryAgent
 
-router = APIRouter()
 
+router = APIRouter()
 
 
 @router.get("/repo")
@@ -47,12 +47,14 @@ def scan_repo(repo_name: str):
 
     return result
 
+
 @router.get("/parse")
 def parse_file(file_path: str):
 
     result = parse_python_file(file_path)
 
     return result
+
 
 @router.get("/parse-repo")
 def parse_repo(repo_name: str):
@@ -63,6 +65,7 @@ def parse_repo(repo_name: str):
 
     return result
 
+
 @router.get("/visualize")
 def visualize_repo(repo_name: str):
 
@@ -72,40 +75,65 @@ def visualize_repo(repo_name: str):
 
     dependency_graph = parsed_result["dependency_graph"]
 
-    graph_path = generate_dependency_graph(dependency_graph)
+    graph_path = generate_dependency_graph(
+        dependency_graph
+    )
 
     return {
         "message": "Dependency graph generated successfully",
         "graph_file": graph_path
     }
-    
+
+
 @router.get("/index-repo")
 def index_repo(repo_name: str):
 
     repo_path = f"workspace/{repo_name}"
 
-    parsed_result = parse_repository(repo_path)
+    parsed_result = parse_repository(
+        repo_path
+    )
 
     parsed_files = parsed_result["parsed_files"]
 
-    result = index_repository(parsed_files)
+    result = index_repository(
+        parsed_files,
+        repo_name
+    )
 
     return result
 
-@router.get("/search")
-def search_repo(query: str):
 
-    results = semantic_search(query)
+@router.get("/search")
+def search_repo(
+    repo_name: str,
+    query: str
+):
+
+    results = semantic_search(
+        query,
+        repo_name,
+        top_k=5
+    )
 
     return {
+        "repository": repo_name,
         "query": query,
         "results": results
     }
-    
-@router.get("/ask")
-def ask_repo(question: str):
 
-    search_results = semantic_search(question, top_k=2)
+
+@router.get("/ask")
+def ask_repo(
+    repo_name: str,
+    question: str
+):
+
+    search_results = semantic_search(
+        question,
+        repo_name,
+        top_k=2
+    )
 
     context = ""
 
@@ -133,8 +161,11 @@ def ask_repo(question: str):
     prompt = f"""
     You are an AI repository assistant.
 
+    You are answering questions about this repository:
+    {repo_name}
+
     Use the repository context and conversation history
-    to answer the current question clearly.
+    to answer the question clearly.
 
     Repository Context:
     {context}
@@ -146,26 +177,39 @@ def ask_repo(question: str):
     {question}
     """
 
-    answer = ask_mistral(prompt)
+    answer = ask_mistral(
+        prompt
+    )
 
     # Save current interaction into memory
-    add_to_memory(question, answer)
+    add_to_memory(
+        question,
+        answer
+    )
 
     return {
+        "repository": repo_name,
         "question": question,
         "answer": answer
     }
 
+
 @router.get("/call-graph")
-def visualize_call_graph(repo_name: str):
+def visualize_call_graph(
+    repo_name: str
+):
 
     repo_path = f"workspace/{repo_name}"
 
-    parsed_result = parse_repository(repo_path)
+    parsed_result = parse_repository(
+        repo_path
+    )
 
     parsed_files = parsed_result["parsed_files"]
 
-    graph_path = generate_call_graph(parsed_files)
+    graph_path = generate_call_graph(
+        parsed_files
+    )
 
     return {
         "message": "Function call graph generated",
@@ -180,14 +224,36 @@ class AgentAskRequest(BaseModel):
 
 
 @router.post("/agent/ask")
-def agent_ask_post(request: AgentAskRequest):
-    agent = RepositoryAgent(repo_name=request.repo_name, max_iterations=request.max_iterations)
-    result = agent.run(request.question)
+def agent_ask_post(
+    request: AgentAskRequest
+):
+
+    agent = RepositoryAgent(
+        repo_name=request.repo_name,
+        max_iterations=request.max_iterations
+    )
+
+    result = agent.run(
+        request.question
+    )
+
     return result
 
 
 @router.get("/agent/ask")
-def agent_ask_get(repo_name: str, question: str, max_iterations: int = 6):
-    agent = RepositoryAgent(repo_name=repo_name, max_iterations=max_iterations)
-    result = agent.run(question)
-    return result
+def agent_ask_get(
+    repo_name: str,
+    question: str,
+    max_iterations: int = 6
+):
+
+    agent = RepositoryAgent(
+        repo_name=repo_name,
+        max_iterations=max_iterations
+    )
+
+    result = agent.run(
+        question
+    )
+
+    return result
