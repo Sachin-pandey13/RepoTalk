@@ -1,185 +1,149 @@
-import { useAuth } from '../context/AuthContext'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { Github, Mail, Calendar, Star, GitBranch, LogOut, RefreshCw } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ArrowLeft, GitBranch, MessageSquare, LogOut, User, Mail, Shield } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-function StatCard({ icon, label, value, color }) {
-  return (
-    <div className="stat-card glass-card">
-      <div className={`stat-icon stat-icon--${color}`}>{icon}</div>
-      <div>
-        <div className="stat-value">{value}</div>
-        <div className="stat-label">{label}</div>
-      </div>
-    </div>
-  )
-}
+const API = 'http://localhost:8000'
 
 export default function Profile() {
-  const { user, loading, logout } = useAuth()
-  const navigate = useNavigate()
+  const nav = useNavigate()
+  const [user, setUser]   = useState(null)
   const [repos, setRepos] = useState([])
-  const [repoLoading, setRepoLoading] = useState(true)
 
   useEffect(() => {
-    if (!loading && !user) navigate('/login', { replace: true })
-  }, [user, loading, navigate])
+    fetch(`${API}/auth/me`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => { if (u) setUser(u); else nav('/login') })
+      .catch(() => nav('/login'))
 
-  useEffect(() => {
-    if (!user) return
-    const load = async () => {
-      try {
-        const resp = await fetch(`${API}/chat/repos`, { credentials: 'include' })
-        if (resp.ok) {
-          const data = await resp.json()
-          setRepos(data.repos || [])
-        }
-      } catch {}
-      setRepoLoading(false)
-    }
-    load()
-  }, [user])
+    fetch(`${API}/chat/repos`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d?.repos && setRepos(d.repos))
+      .catch(() => {})
+  }, [])
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/', { replace: true })
+  const logout = async () => {
+    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' })
+    nav('/login')
   }
 
-  if (loading || !user) return null
+  if (!user) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="spinner" style={{ width: 24, height: 24 }} />
+    </div>
+  )
 
-  const initials = user.name
-    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : '?'
-
-  const joinedDate = user.created_at
-    ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-    : 'N/A'
+  const initial = (user.name || user.username || 'U')[0].toUpperCase()
 
   return (
-    <div className="profile-page">
-      <div className="profile-bg" />
+    <div style={{ minHeight: '100vh', background: 'var(--obsidian)', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
-      <div className="container container--narrow" style={{ position: 'relative', zIndex: 1 }}>
+        {/* Back */}
+        <button
+          className="btn btn-ghost btn-sm flex items-center gap-2"
+          onClick={() => nav('/chat')}
+          style={{ marginBottom: 24 }}
+        >
+          <ArrowLeft size={13} /> Back to dashboard
+        </button>
+
         {/* Profile card */}
-        <div className="profile-card glass-card animate-fade-in-up">
-          <div className="profile-avatar-wrap">
-            {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.name}
-                className="profile-avatar"
-              />
-            ) : (
-              <div className="profile-avatar profile-avatar--initials">
-                {initials}
-              </div>
-            )}
-            <div className="profile-provider-badge">
-              {user.provider === 'github' ? <Github size={14} /> : '🔵'}
+        <motion.div
+          className="card"
+          style={{ padding: 28, marginBottom: 16, border: '1px solid var(--border-bright)' }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{
+              width: 68, height: 68, borderRadius: '50%',
+              background: 'var(--indigo)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: 26, fontWeight: 700, color: 'white', flexShrink: 0,
+              overflow: 'hidden', border: '2px solid var(--indigo)44'
+            }}>
+              {user.avatar_url
+                ? <img src={user.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : initial}
             </div>
-          </div>
-
-          <div className="profile-info">
-            <h1 className="profile-name">{user.name}</h1>
-            {user.email && (
-              <div className="profile-detail">
-                <Mail size={13} />
-                {user.email}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--cloud)', marginBottom: 4 }}>
+                {user.name || user.username}
               </div>
-            )}
-            {user.github_username && (
-              <div className="profile-detail">
-                <Github size={13} />
-                <a
-                  href={`https://github.com/${user.github_username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  @{user.github_username}
-                </a>
+              {user.email && (
+                <div style={{ fontSize: 13, color: 'var(--steel)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Mail size={12} /> {user.email}
+                </div>
+              )}
+              <div style={{ marginTop: 10 }}>
+                <span className="badge badge-indigo" style={{ textTransform: 'capitalize' }}>
+                  <Shield size={10} /> {user.provider}
+                </span>
               </div>
-            )}
-            <div className="profile-detail">
-              <Calendar size={13} />
-              Member since {joinedDate}
             </div>
+            <button className="btn btn-secondary btn-sm flex items-center gap-2" onClick={logout}>
+              <LogOut size={12} /> Sign out
+            </button>
           </div>
-
-          <button
-            id="logout-btn"
-            className="btn btn-ghost btn-sm"
-            style={{ marginTop: '1rem', alignSelf: 'flex-start' }}
-            onClick={handleLogout}
-          >
-            <LogOut size={14} />
-            Sign out
-          </button>
-        </div>
+        </motion.div>
 
         {/* Stats */}
-        <div className="stats-grid animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <StatCard
-            icon={<GitBranch size={18} />}
-            label="Repositories Indexed"
-            value={repos.length}
-            color="violet"
-          />
-          <StatCard
-            icon={'🧠'}
-            label="Provider"
-            value={user.provider === 'github' ? 'GitHub' : 'Google'}
-            color="mint"
-          />
-          <StatCard
-            icon={'🔒'}
-            label="Session"
-            value="Secure"
-            color="amber"
-          />
-        </div>
-
-        {/* Indexed repos */}
-        <div className="glass-card animate-fade-in-up" style={{ animationDelay: '0.2s', marginTop: '1.5rem', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>
-              <GitBranch size={15} style={{ display: 'inline', marginRight: '0.4rem', color: 'var(--violet-400)' }} />
-              Indexed Repositories
-            </h2>
-          </div>
-
-          {repoLoading && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--text-muted)' }}>
-              <div className="spinner" style={{ width: 16, height: 16 }} />
-              Loading…
-            </div>
-          )}
-
-          {!repoLoading && repos.length === 0 && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', padding: '1rem 0' }}>
-              No repositories indexed yet. Head to the{' '}
-              <a onClick={() => navigate('/chat')} style={{ cursor: 'pointer', color: 'var(--violet-400)' }}>
-                Chat page
-              </a>{' '}
-              to add one.
-            </div>
-          )}
-
-          <div className="profile-repos">
-            {repos.map((r, i) => (
-              <div
-                key={i}
-                className="profile-repo-item"
-                onClick={() => navigate(`/chat?repo=${encodeURIComponent(r)}`)}
-              >
-                <GitBranch size={14} />
-                <span>{r}</span>
-                <span className="profile-repo-chat">Chat →</span>
+        <motion.div
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          {[
+            { label: 'Repositories', value: repos.length, color: 'var(--indigo)', icon: <GitBranch size={16}/> },
+            { label: 'Provider', value: user.provider, color: 'var(--ice)', icon: <User size={16}/> },
+            { label: 'Status', value: 'Active', color: 'var(--mint)', icon: <Shield size={16}/> },
+          ].map((s, i) => (
+            <div key={i} className="card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+              <div style={{ color: s.color, display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{s.icon}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--cloud)', marginBottom: 2, textTransform: 'capitalize' }}>
+                {s.value}
               </div>
-            ))}
-          </div>
-        </div>
+              <div style={{ fontSize: 12, color: 'var(--steel)' }}>{s.label}</div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Repo list */}
+        {repos.length > 0 && (
+          <motion.div
+            className="card"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--cloud)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GitBranch size={14} style={{ color: 'var(--indigo)' }} />
+              Indexed Repositories
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {repos.map(r => (
+                <div
+                  key={r}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 'var(--radius)',
+                    background: 'var(--slate)', cursor: 'pointer',
+                    border: '1px solid transparent', transition: 'all 0.12s'
+                  }}
+                  onClick={() => nav('/chat')}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--indigo)33'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
+                >
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--mint)', boxShadow: '0 0 6px var(--mint)88', flexShrink: 0 }} />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--cloud)', flex: 1 }}>{r}</span>
+                  <span style={{ fontSize: 11, color: 'var(--mint)' }}>Ready</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   )

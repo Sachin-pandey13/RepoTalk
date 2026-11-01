@@ -1,83 +1,69 @@
-import { Github, Mail, Zap } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Github, Chrome } from 'lucide-react'
+import GraphCanvas from '../components/GraphCanvas'
+
+const API = 'http://localhost:8000'
 
 export default function Login() {
-  const { user, loading, loginWithGithub, loginWithGoogle } = useAuth()
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!loading && user) {
-      navigate('/chat', { replace: true })
-    }
-  }, [user, loading, navigate])
-
-  if (loading) return null
-
   return (
-    <div className="auth-page">
-      {/* Background orbs */}
-      <div className="hero-orb hero-orb-1" style={{ opacity: 0.35 }} />
-      <div className="hero-orb hero-orb-2" style={{ opacity: 0.25 }} />
+    <div className="login-page">
+      <GraphCanvas />
 
-      <div className="auth-card glass-card animate-fade-in-up">
+      <motion.div
+        className="login-card"
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      >
         {/* Logo */}
-        <div className="auth-logo">
-          <span style={{ fontSize: '2rem' }}>🧠</span>
-          <span className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: 700 }}>RepoTalk</span>
+        <div className="login-logo">
+          <div className="login-logo-mark">RT</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cloud)' }}>RepoTalk</div>
+            <div style={{ fontSize: 11, color: 'var(--indigo)', fontWeight: 500 }}>ELECTRIC GRAPHITE</div>
+          </div>
         </div>
 
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">
-          Sign in to start exploring repositories with AI‑powered Q&amp;A
+        <h1 className="login-title">Welcome back</h1>
+        <p className="login-sub">Sign in to access your repositories and conversations.</p>
+
+        {/* GitHub */}
+        <a href={`${API}/auth/github`} className="oauth-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          Continue with GitHub
+        </a>
+
+        {/* Google */}
+        <a href={`${API}/auth/google`} className="oauth-btn">
+          <svg viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Continue with Google
+        </a>
+
+        <div className="login-divider">or</div>
+
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+          By signing in you agree to our{' '}
+          <span style={{ color: 'var(--indigo)', cursor: 'pointer' }}>Terms of Service</span>
+          {' '}and{' '}
+          <span style={{ color: 'var(--indigo)', cursor: 'pointer' }}>Privacy Policy</span>.
         </p>
 
-        {/* OAuth Buttons */}
-        <div className="auth-buttons">
-          <button
-            id="github-login-btn"
-            className="auth-btn auth-btn-github"
-            onClick={loginWithGithub}
-          >
-            <Github size={18} />
-            Continue with GitHub
-          </button>
-
-          <button
-            id="google-login-btn"
-            className="auth-btn auth-btn-google"
-            onClick={loginWithGoogle}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-              <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-            </svg>
-            Continue with Google
-          </button>
+        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+            New to RepoTalk?{' '}
+            <a href={`${API}/auth/github`} style={{ color: 'var(--indigo)', fontWeight: 500 }}>
+              Create account →
+            </a>
+          </p>
         </div>
-
-        <div className="auth-divider">
-          <span />
-          <p>Secure OAuth — we never store your password</p>
-          <span />
-        </div>
-
-        <div className="auth-features">
-          {[
-            { icon: '🔒', text: 'httpOnly cookie sessions — no token exposure' },
-            { icon: '⚡', text: 'Instant repo ingestion with vector search' },
-            { icon: '🛡️', text: 'Rate‑limited, header‑secured API' },
-          ].map((f, i) => (
-            <div key={i} className="auth-feature-row">
-              <span>{f.icon}</span>
-              <span>{f.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

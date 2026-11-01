@@ -1,45 +1,30 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 
-/**
- * Handles the OAuth redirect callback.
- * The backend sets httpOnly cookies and redirects to /auth/callback.
- * This page simply triggers a refetch of /auth/me and navigates to /chat.
- */
+const API = 'http://localhost:8000'
+
 export default function AuthCallback() {
-  const { refetch } = useAuth()
-  const navigate = useNavigate()
-
+  const nav = useNavigate()
   useEffect(() => {
-    const handleCallback = async () => {
-      await refetch()
-      const pending = sessionStorage.getItem('pending_repo')
-      if (pending) {
-        sessionStorage.removeItem('pending_repo')
-        navigate(`/chat?repo=${encodeURIComponent(pending)}`, { replace: true })
-      } else {
-        navigate('/chat', { replace: true })
-      }
-    }
-    handleCallback()
-  }, [refetch, navigate])
+    fetch(`${API}/auth/me`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => nav(u ? '/chat' : '/login'))
+      .catch(() => nav('/login'))
+  }, [])
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        gap: '1rem',
-      }}
-    >
-      <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-        Completing sign-in…
-      </p>
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'var(--obsidian)', gap: 16
+    }}>
+      <div style={{
+        width: 40, height: 40, background: 'var(--indigo)',
+        borderRadius: 10, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white'
+      }}>RT</div>
+      <div className="spinner" style={{ width: 20, height: 20 }} />
+      <p style={{ fontSize: 13, color: 'var(--steel)' }}>Signing you in…</p>
     </div>
   )
 }
